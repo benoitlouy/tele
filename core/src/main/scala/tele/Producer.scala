@@ -35,7 +35,7 @@ trait FutureLift[F[_]] {
 object FutureLift {
   def apply[F[_]](implicit ev: FutureLift[F]): FutureLift[F] = ev
 
-  def catsEffectAsync[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
+  implicit def catsEffectAsync[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
     override def lift[A](fa: =>CompletableFuture[A]): F[A] = {
       Async[F].fromCompletableFuture(Async[F].delay(fa))
     }

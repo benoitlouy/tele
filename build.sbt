@@ -14,7 +14,11 @@ lazy val core = project.settings(
   libraryDependencies ++= Seq(
     "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
     "software.amazon.awssdk" % "kinesis" % "2.17.88",
-    "org.typelevel" %% "cats-effect" % "3.2.9"
+    "software.amazon.kinesis" % "amazon-kinesis-client" % "2.3.9",
+    "org.typelevel" %% "cats-effect" % "3.2.9",
+    "co.fs2" %% "fs2-core" % "3.2.2",
+    "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.2.7" % Test
   )
 )
 

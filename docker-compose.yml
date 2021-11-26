@@ -1,0 +1,60 @@
+version: '2.4'
+services:
+  dynamodb:
+    command: "-jar DynamoDBLocal.jar -inMemory"
+    image: "amazon/dynamodb-local:latest"
+    working_dir: /home/dynamodblocal
+    ports:
+      - "8000:8000"
+  localstack:
+    image: "localstack/localstack:latest"
+    environment:
+      - "SERVICES=cloudwatch"
+      - "USE_SSL=true"
+    healthcheck:
+      test: "awslocal cloudwatch list-metrics"
+      interval: 5s
+      timeout: 10s
+      start_period: 10s
+    ports:
+      - "4566:4566"
+    depends_on:
+      - dynamodb
+  kinesis-mock:
+    image: "ghcr.io/etspaceman/kinesis-mock:0.1.8"
+    environment:
+      - "LOG_LEVEL=TRACE"
+      - "CREATE_STREAM_DURATION=0ms"
+      - "DELETE_STREAM_DURATION=0ms"
+    healthcheck:
+      test: "curl --fail http://localhost:4568/healthcheck || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "4567:4567"
+      - "4568:4568"
+  awscli:
+    image: amazon/aws-cli:latest
+    environment:
+      - "AWS_ACCESS_KEY_ID=foo"
+      - "AWS_SECRET_ACCESS_KEY=bar"
+      - "AWS_DEFAULT_REGION=us-east-1"
+    entrypoint: "bash -c"
+    command: "'aws --endpoint-url 'https://kinesis-mock:4567/' --no-verify-ssl kinesis list-streams && exit 0 || exit 1'"
+    depends_on:
+      kinesis-mock:
+        condition: service_healthy
+  ready:
+    image: "library/hello-world"
+    depends_on:
+      localstack:
+        condition: service_healthy
+      kinesis-mock:
+        condition: service_healthy
+      awscli:
+        condition: service_completed_successfully
+# networks:
+#   default:
+#     external:
+#       name: tele-network
