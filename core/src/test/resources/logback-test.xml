@@ -4,7 +4,8 @@
       <pattern>[%thread] %highlight(%-5level) %d{ISO8601} %cyan(%logger{15}) %yellow(%mdc) - %msg %n</pattern>
     </encoder>
   </appender>
-  <logger name="software.amazon" level="${AWSV2_LOG_LEVEL:-INFO}"/>
+  <logger name="software.amazon" level="${AWSV2_LOG_LEVEL:-ERROR}"/>
+  <logger name="software.amazon.kinesis.retrieval.polling.PrefetchRecordsPublisher" level="${AWSV2_LOG_LEVEL:-OFF}"/>
   <root level="${ROOT_LOG_LEVEL:-ERROR}">
     <appender-ref ref="STDOUT" />
   </root>

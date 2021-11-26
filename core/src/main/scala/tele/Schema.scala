@@ -16,8 +16,6 @@
 
 package tele
 
-import cats.data.EitherNec
-
 final case class DecodingFailure(msg: String, cause: Throwable) extends Exception(msg, cause)
 
 object DecodingFailure {
@@ -26,7 +24,7 @@ object DecodingFailure {
 
 trait Schema[A] {
   def encode(a: A): Array[Byte]
-  def decode(bytes: Array[Byte]): EitherNec[DecodingFailure, A]
+  def decode(bytes: Array[Byte]): Either[DecodingFailure, A]
 }
 
 object Schema {

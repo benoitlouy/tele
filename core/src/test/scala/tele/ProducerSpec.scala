@@ -1,7 +1,6 @@
 package tele
 
 import cats.effect._
-import cats.data.EitherNec
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest
 import software.amazon.awssdk.services.kinesis.model.DeleteStreamRequest
 import cats.data.NonEmptyVector
@@ -11,7 +10,7 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
   implicit val stringSchema = new Schema[String] {
     override def encode(a: String): Array[Byte] = a.getBytes()
 
-    override def decode(bytes: Array[Byte]): EitherNec[DecodingFailure, String] = Right(new String(bytes))
+    override def decode(bytes: Array[Byte]): Either[DecodingFailure, String] = Right(new String(bytes))
 
   }
 
