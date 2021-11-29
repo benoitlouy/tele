@@ -56,7 +56,3 @@ services:
         condition: service_healthy
       awscli:
         condition: service_completed_successfully
-# networks:
-#   default:
-#     external:
-#       name: tele-network
