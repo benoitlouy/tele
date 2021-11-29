@@ -17,9 +17,12 @@ jobs:
         java:
           - jdk8
           - jdk11
-          - jdk14
+          - jdk17
     steps:
       - uses: actions/checkout@v2.3.2
+
+      - name: "Starting test dependencies"
+        run: docker-compose up -d
 
       - name: "Cache for sbt & coursier ♨️"
         uses: coursier/cache-action@v4.1
