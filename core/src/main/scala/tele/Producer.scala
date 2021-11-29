@@ -16,11 +16,8 @@
 
 package tele
 
-import java.util.concurrent.CompletableFuture
-
 import scala.jdk.CollectionConverters._
 
-import cats.Functor
 import cats.data.NonEmptyVector
 import cats.effect._
 import cats.syntax.all._
@@ -28,19 +25,7 @@ import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
 import software.amazon.awssdk.services.kinesis.model._
 
-trait FutureLift[F[_]] {
-  def lift[A](fa: =>CompletableFuture[A]): F[A]
-}
-
-object FutureLift {
-  def apply[F[_]](implicit ev: FutureLift[F]): FutureLift[F] = ev
-
-  def catsEffectAsync[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
-    override def lift[A](fa: =>CompletableFuture[A]): F[A] = {
-      Async[F].fromCompletableFuture(Async[F].delay(fa))
-    }
-  }
-}
+import tele.internal.FutureLift
 
 trait Producer[F[_], A] {
   import Producer._
@@ -71,7 +56,7 @@ object Producer {
     final case class Failed[A](record: A, code: String, message: String) extends RichResultEntry[A]
   }
 
-  def make[F[_]: Functor: FutureLift, A: Schema](
+  def make[F[_]: Async, A: Schema](
       client: KinesisAsyncClient,
       stream: String,
       opt: Options[A]
@@ -104,11 +89,15 @@ object Producer {
 
   sealed trait Options[A] {
     val partitionKey: A => String
+
+    def withPartitionKey(f: A => String): Options[A]
   }
 
   object Options {
-    private case class OptionImpl[A](partitionKey: A => String) extends Options[A]
+    private case class OptionsImpl[A](partitionKey: A => String) extends Options[A] {
+      override def withPartitionKey(f: A => String): Options[A] = copy(partitionKey = f)
+    }
 
-    def apply[A](): Options[A] = OptionImpl(PartitionKey.random)
+    def apply[A](): Options[A] = OptionsImpl(PartitionKey.random)
   }
 }

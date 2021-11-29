@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-package tele
+package tele.internal
 
-final case class DecodingFailure(msg: String, cause: Throwable) extends Exception(msg, cause)
+import java.util.concurrent.CompletableFuture
 
-object DecodingFailure {
-  def apply(msg: String): DecodingFailure = DecodingFailure(msg, null)
+import cats.effect._
+
+trait FutureLift[F[_]] {
+  def lift[A](fa: =>CompletableFuture[A]): F[A]
 }
 
-trait Schema[A] {
-  def encode(a: A): Array[Byte]
-  def decode(bytes: Array[Byte]): Either[DecodingFailure, A]
-}
+object FutureLift {
+  def apply[F[_]](implicit ev: FutureLift[F]): FutureLift[F] = ev
 
-object Schema {
-  def apply[A](implicit ev: Schema[A]): Schema[A] = ev
+  implicit def catsEffectAsync[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
+    override def lift[A](fa: =>CompletableFuture[A]): F[A] = {
+      Async[F].fromCompletableFuture(Async[F].delay(fa))
+    }
+  }
 }
