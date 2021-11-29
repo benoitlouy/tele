@@ -1,20 +1,17 @@
 package tele
 
-// import scala.concurrent.duration._
-
 import cats.effect._
 import cats.syntax.all._
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
-import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient
-import software.amazon.kinesis.common.ConfigsBuilder
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
-import software.amazon.kinesis.processor.ShardRecordProcessorFactory
-import software.amazon.kinesis.coordinator.Scheduler
 import fs2.concurrent.SignallingRef
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
+import software.amazon.kinesis.common.{ ConfigsBuilder, InitialPositionInStream, InitialPositionInStreamExtended }
+import software.amazon.kinesis.coordinator.Scheduler
+import software.amazon.kinesis.processor.ShardRecordProcessorFactory
 import software.amazon.kinesis.retrieval.polling.PollingConfig
-import tele.internal.{ RecordProcessor, WorkerStartedListener }
-import software.amazon.kinesis.common.InitialPositionInStreamExtended
-import software.amazon.kinesis.common.InitialPositionInStream
+
+import tele.internal.{ FutureLift, RecordProcessor, WorkerStartedListener }
 
 trait Consumer[F[_], A] { self =>
   def subscribe: Resource[F, fs2.Stream[F, A]]
@@ -25,14 +22,14 @@ trait Consumer[F[_], A] { self =>
 
 object Consumer {
 
-  def make[F[_]: Async: std.Console](
+  def make[F[_]: Async](
       appId: String,
       workerId: String,
       stream: String,
       kinesisClient: KinesisAsyncClient,
       ddbClient: DynamoDbAsyncClient,
       cwClient: CloudWatchAsyncClient
-    ) = {
+    ): Consumer[F, CommitableRecord[F]] =
     new Consumer[F, CommitableRecord[F]] {
       override def subscribe: Resource[F, fs2.Stream[F, CommitableRecord[F]]] = {
         for {
@@ -49,9 +46,8 @@ object Consumer {
           .flatMap(fs2.Stream.emits)
       }
     }
-  }
 
-  private def makeScheduler[F[_]: Async: std.Console](
+  private def makeScheduler[F[_]: Async](
       appId: String,
       workerId: String,
       stream: String,
@@ -102,25 +98,10 @@ object Consumer {
           .supervise(
             Async[F]
               .interruptible(false)(scheduler.run())
-              .flatTap(_ => std.Console[F].println("setting stopFlag to true"))
               .flatTap(_ => stopFlag.set(true))
           )
-          .flatTap(_ => std.Console[F].println("check if worker has started"))
           .flatTap(_ => startFlag.get)
-          .flatTap(_ => std.Console[F].println("worker started"))
-        // .flatTap(_ => Async[F].sleep(2.seconds))
-        // .flatTap(_ => std.Console[F].println("done sleeping"))
-      )(fiber =>
-        std
-          .Console[F]
-          .println("shutting down")
-          .flatTap(_ => FutureLift[F].lift(scheduler.startGracefulShutdown()))
-          // .flatTap(_ => Async[F].blocking(scheduler.shutdown()))
-          .flatTap(_ => std.Console[F].println("signal sent"))
-          .flatTap(_ => fiber.join)
-          .flatTap(_ => std.Console[F].println("stopped"))
-          .void
-      )
+      )(fiber => FutureLift[F].lift(scheduler.startGracefulShutdown()).flatTap(_ => fiber.join).void)
     } yield scheduler
 
   implicit class CommitableRecordConsumerOps[F[_]](val consumer: Consumer[F, CommitableRecord[F]]) extends AnyVal {

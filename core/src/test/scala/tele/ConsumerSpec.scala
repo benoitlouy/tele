@@ -1,13 +1,12 @@
 package tele
 
-import scala.concurrent.duration._
+import java.util.UUID
 
+import scala.concurrent.duration.{ Duration, _ }
+
+import cats.data.NonEmptyVector
 import cats.effect._
 import cats.syntax.all._
-import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest
-import software.amazon.awssdk.services.kinesis.model.DeleteStreamRequest
-import java.util.UUID
-import scala.concurrent.duration.Duration
 
 class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
@@ -18,39 +17,91 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
   }
 
-  val streamName = getClass().getName()
-
-  val consumer = ResourceFixture(
-    for {
-      _ <- Resource.make(
-        FutureLift[IO]
-          .lift(
-            kinesisClient.createStream(CreateStreamRequest.builder().streamName(streamName).shardCount(1).build())
-          )
-          .void
-      )(_ =>
-        FutureLift[IO]
-          .lift(kinesisClient.deleteStream(DeleteStreamRequest.builder().streamName(streamName).build()))
-          .void
-          .flatTap(_ => IO(println("stream deleted")))
-      )
-      consumer <- Consumer
-        .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
-        .as[String]
-        .subscribe
-    } yield consumer
-  )
-
   override def munitTimeout: Duration = 120.seconds
 
-  consumer.test("test") { consumer =>
+  stream.test("consume single record") { streamName =>
     val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
+    val consumer = Consumer
+      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
+      .as[String]
+
+    val test = consumer.subscribe.use { records =>
+      for {
+        _ <- producer.putRecord("data")
+        data <- records.take(1).compile.toVector
+      } yield data.collect { case r: DeserializedRecord.WithValue[IO, String] => r.value } == Vector("data")
+    }
+
+    test.assert
+  }
+
+  stream.test("consume multiple records") { streamName =>
+    val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
+    val consumer = Consumer
+      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
+      .as[String]
+
+    val test = consumer.subscribe.use { records =>
+      for {
+        _ <- producer.putRecords(NonEmptyVector.of("data1", "data2"))
+        data <- records.take(2).compile.toVector
+      } yield data.collect { case r: DeserializedRecord.WithValue[IO, String] => r.value } == Vector("data1", "data2")
+    }
+
+    test.assert
+  }
+
+  stream.test("without checkpointing") { streamName =>
+    val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
+    val consumer = Consumer
+      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
+      .as[String]
+
+    val step1 = consumer.subscribe.use { records =>
+      for {
+        _ <- producer.putRecords(NonEmptyVector.of("data1", "data2"))
+        data <- records.take(1).compile.toVector
+      } yield data
+    }
+
+    val step2 = consumer.subscribe.use { records =>
+      records.take(1).compile.toVector
+    }
+
     val test = for {
-      _ <- producer.putRecord("data")
-      data <- consumer.take(1).compile.toVector
-      _ <- std.Console[IO].println(data)
-      // _ <- data.traverse_(d => d.underlying.commit)
-    } yield data.collect { case r: DeserializedRecord.WithValue[IO, String] => r.value } == Vector("data")
+      a <- step1
+      b <- step2
+    } yield (a ++ b).collect { case r: DeserializedRecord.WithValue[IO, String] => r.value } == Vector("data1", "data1")
+
+    test.assert
+  }
+
+  stream.test("with checkpointing") { streamName =>
+    val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
+    val consumer = Consumer
+      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
+      .as[String]
+
+    val step1 = consumer.subscribe.use { records =>
+      for {
+        _ <- producer.putRecords(NonEmptyVector.of("data1", "data2"))
+        data <- records.take(1).compile.toVector
+        _ <- data.traverse_(_.underlying.commit)
+      } yield data
+    }
+
+    val step2 = consumer.subscribe.use { records =>
+      for {
+        data <- records.take(1).compile.toVector
+        _ <- data.traverse_(_.underlying.commit)
+      } yield data
+    }
+
+    val test = for {
+      a <- step1
+      b <- step2
+    } yield (a ++ b).collect { case r: DeserializedRecord.WithValue[IO, String] => r.value } == Vector("data1", "data2")
+
     test.assert
   }
 }

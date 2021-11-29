@@ -13,7 +13,9 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord
 import tele.CommitableRecord
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer
 
-class RecordProcessor[F[_]: Async](callback: List[CommitableRecord[F]] => Unit, dispatcher: std.Dispatcher[F])
+private[tele] class RecordProcessor[F[_]: Async](
+    callback: List[CommitableRecord[F]] => Unit,
+    dispatcher: std.Dispatcher[F])
   extends ShardRecordProcessor {
   private[tele] var shardId: String = _
   private[tele] var extendedSequenceNumber: ExtendedSequenceNumber = _
@@ -33,7 +35,6 @@ class RecordProcessor[F[_]: Async](callback: List[CommitableRecord[F]] => Unit, 
       if (last.forall(_ < newCheckpoint))
         Sync[F]
           .blocking(checkpointer.checkpoint(record.sequenceNumber(), record.subSequenceNumber()))
-          .flatMap(_ => lastCheckpoint.offer(Some(newCheckpoint)))
           .as(Some(newCheckpoint))
       else Sync[F].pure(last)
     }
