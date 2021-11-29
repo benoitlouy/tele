@@ -89,11 +89,15 @@ object Producer {
 
   sealed trait Options[A] {
     val partitionKey: A => String
+
+    def withPartitionKey(f: A => String): Options[A]
   }
 
   object Options {
-    private case class OptionImpl[A](partitionKey: A => String) extends Options[A]
+    private case class OptionsImpl[A](partitionKey: A => String) extends Options[A] {
+      override def withPartitionKey(f: A => String): Options[A] = copy(partitionKey = f)
+    }
 
-    def apply[A](): Options[A] = OptionImpl(PartitionKey.random)
+    def apply[A](): Options[A] = OptionsImpl(PartitionKey.random)
   }
 }

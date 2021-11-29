@@ -2,7 +2,7 @@ package tele
 
 import java.util.UUID
 
-import scala.concurrent.duration.{ Duration, _ }
+import scala.concurrent.duration._
 
 import cats.data.NonEmptyVector
 import cats.effect._
@@ -19,11 +19,28 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
   override def munitTimeout: Duration = 120.seconds
 
+  val opt =
+    Consumer
+      .Options()
+      .withRetrievalMode(Consumer.Options.Polling)
+      .withInitialPosition(Consumer.Options.TrimHorizon)
+      .withParentShardPollInterval(1.second)
+      .withShardSyncInterval(1.second)
+
   stream.test("consume single record") { streamName =>
     val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
     val consumer = Consumer
-      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
-      .as[String]
+      .make[IO](
+        2,
+        "test",
+        UUID.randomUUID().toString(),
+        streamName,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
+      .withSchema[String]
 
     val test = consumer.subscribe.use { records =>
       for {
@@ -38,8 +55,17 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
   stream.test("consume multiple records") { streamName =>
     val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
     val consumer = Consumer
-      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
-      .as[String]
+      .make[IO](
+        2,
+        "test",
+        UUID.randomUUID().toString(),
+        streamName,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
+      .withSchema[String]
 
     val test = consumer.subscribe.use { records =>
       for {
@@ -54,8 +80,17 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
   stream.test("without checkpointing") { streamName =>
     val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
     val consumer = Consumer
-      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
-      .as[String]
+      .make[IO](
+        2,
+        "test",
+        UUID.randomUUID().toString(),
+        streamName,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
+      .withSchema[String]
 
     val step1 = consumer.subscribe.use { records =>
       for {
@@ -79,8 +114,17 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
   stream.test("with checkpointing") { streamName =>
     val producer = Producer.make[IO, String](kinesisClient, streamName, Producer.Options())
     val consumer = Consumer
-      .make[IO]("test", UUID.randomUUID().toString(), streamName, kinesisClient, dynamoClient, cloudwatchClient)
-      .as[String]
+      .make[IO](
+        2,
+        "test",
+        UUID.randomUUID().toString(),
+        streamName,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
+      .withSchema[String]
 
     val step1 = consumer.subscribe.use { records =>
       for {

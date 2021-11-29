@@ -1,20 +1,35 @@
+/*
+ * Copyright 2021 Benoit Louy
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package tele.internal
 
 import scala.jdk.CollectionConverters._
 
 import cats.effect._
 import cats.syntax.all._
-
 import software.amazon.kinesis.lifecycle.events._
-import software.amazon.kinesis.processor.ShardRecordProcessor
-import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber
+import software.amazon.kinesis.processor.{ RecordProcessorCheckpointer, ShardRecordProcessor }
 import software.amazon.kinesis.retrieval.KinesisClientRecord
+import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber
 
 import tele.CommitableRecord
-import software.amazon.kinesis.processor.RecordProcessorCheckpointer
+import fs2.Chunk
 
 private[tele] class RecordProcessor[F[_]: Async](
-    callback: List[CommitableRecord[F]] => Unit,
+    callback: Chunk[CommitableRecord[F]] => Unit,
     dispatcher: std.Dispatcher[F])
   extends ShardRecordProcessor {
   private[tele] var shardId: String = _
@@ -43,10 +58,10 @@ private[tele] class RecordProcessor[F[_]: Async](
 
   override def processRecords(processRecords: ProcessRecordsInput): Unit = {
     val checkpointer = processRecords.checkpointer()
-    val commitableRecords = processRecords.records().asScala.toList.map { record =>
+    val commitableRecords = processRecords.records().asScala.map { record =>
       CommitableRecord(record, commit(record, checkpointer))
     }
-    callback(commitableRecords)
+    callback(Chunk.buffer(commitableRecords))
   }
 
   override def leaseLost(x: LeaseLostInput): Unit = ()

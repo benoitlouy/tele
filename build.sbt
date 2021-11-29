@@ -10,6 +10,10 @@ ThisBuild / organizationName := "Benoit Louy"
 ThisBuild / startYear := Some(2021)
 ThisBuild / licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 
+val isDotty = Def.setting(
+  CrossVersion.partialVersion(scalaVersion.value).exists(_._1 == 3)
+)
+
 lazy val core = project.settings(
   libraryDependencies ++= Seq(
     "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
@@ -19,6 +23,10 @@ lazy val core = project.settings(
     "co.fs2" %% "fs2-core" % "3.2.2",
     "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test,
     "ch.qos.logback" % "logback-classic" % "1.2.7" % Test
+  ) ++ (
+    if (isDotty.value) Nil
+    else
+      Seq(compilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.2").cross(CrossVersion.full)))
   )
 )
 
