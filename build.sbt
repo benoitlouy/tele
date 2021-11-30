@@ -14,6 +14,11 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
+ThisBuild / Test / testOptions += Tests.Argument(
+  new TestFramework("munit.Framework"),
+  "+l"
+)
+
 val isDotty = Def.setting(
   CrossVersion.partialVersion(scalaVersion.value).exists(_._1 == 3)
 )
