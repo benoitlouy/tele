@@ -75,13 +75,13 @@ object Producer {
       .map(response => RichPutRecordsResponse.from(batch.data.map(_.value).toVector, response))
   }
 
-  def putRecord[F[_]: Async, A: Schema](
+  def putRecord[F[_]: Async, A: SchemaEncoder](
       client: KinesisAsyncClient,
       stream: String,
       opt: Options[A]
     ): fs2.Pipe[F, A, RichPutRecordResponse[A]] =
     _.evalMap { record =>
-      val bytes = Schema[A].encode(record)
+      val bytes = SchemaEncoder[A].encode(record)
       val partitionKey = opt.partitionKey(record)
       val request = PutRecordRequest
         .builder()
@@ -92,14 +92,14 @@ object Producer {
       FutureLift[F].lift(client.putRecord(request)).map(response => RichPutRecordResponse(response, record))
     }
 
-  def make[F[_]: Async, A: Schema](
+  def make[F[_]: Async, A: SchemaEncoder](
       client: KinesisAsyncClient,
       stream: String,
       opt: Options[A]
     ): Producer[F, A] =
     new Producer[F, A] {
       override def putRecord(record: A): F[PutRecordResponse] = {
-        val bytes = Schema[A].encode(record)
+        val bytes = SchemaEncoder[A].encode(record)
         val partitionKey = opt.partitionKey(record)
         val request = PutRecordRequest
           .builder()
@@ -113,7 +113,7 @@ object Producer {
       override def putRecords(records: NonEmptyVector[A]): F[RichPutRecordsResponse[A]] = {
         val entries = records.map { record =>
           val partitionKey = opt.partitionKey(record)
-          val bytes = Schema[A].encode(record)
+          val bytes = SchemaEncoder[A].encode(record)
           PutRecordsRequestEntry.builder().partitionKey(partitionKey).data(SdkBytes.fromByteArrayUnsafe(bytes)).build()
         }
         val request = PutRecordsRequest.builder().streamName(stream).records(entries.toList.asJava).build()

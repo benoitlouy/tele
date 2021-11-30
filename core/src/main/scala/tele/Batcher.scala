@@ -25,7 +25,7 @@ object Batcher {
     def empty[A]: Acc[A] = Acc(Vector.empty, None)
   }
 
-  def batch[F[_], A: Schema](
+  def batch[F[_], A: SchemaEncoder](
       opt: Producer.Options[A],
       maxEntrySize: Int = 1000000, // 1MB
       maxBatchSize: Int = 5000000, // 5MB
@@ -33,7 +33,7 @@ object Batcher {
     ): fs2.Pipe[F, A, Put[A]] = in => {
     in.mapChunks { chunk =>
       val (tooLarge, fit) = chunk.partitionEither { a =>
-        val bytes = Schema[A].encode(a)
+        val bytes = SchemaEncoder[A].encode(a)
         val partitionKey = opt.partitionKey(a)
         val size = bytes.length + partitionKey.getBytes().length
         val encoded = Encoded(a, bytes, partitionKey, size)

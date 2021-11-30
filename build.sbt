@@ -22,7 +22,9 @@ lazy val core = project.settings(
     "org.typelevel" %% "cats-effect" % "3.2.9",
     "co.fs2" %% "fs2-core" % "3.2.2",
     "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test,
-    "ch.qos.logback" % "logback-classic" % "1.2.7" % Test
+    "ch.qos.logback" % "logback-classic" % "1.2.7" % Test,
+    "io.circe" %% "circe-core" % "0.14.1" % Test,
+    "io.circe" %% "circe-parser" % "0.14.1" % Test
   ) ++ (
     if (isDotty.value) Nil
     else
