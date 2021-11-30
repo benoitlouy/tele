@@ -1,11 +1,13 @@
 package tele
 
+import java.util.UUID
+
 import scala.concurrent.duration._
+
 import cats.effect._
 import cats.syntax.all._
 import io.circe._
 import io.circe.syntax._
-import java.util.UUID
 
 class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
 
