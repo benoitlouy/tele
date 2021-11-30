@@ -90,17 +90,18 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
       .withSchema[User.WithId]
 
     consumerSrc.subscribe.parProduct(consumerDst.subscribe).use { case (srcStream, dstStream) =>
-      val publish = fs2.Stream
-        .emits(Vector(User("bob", 42)))
+      val publish = fs2
+        .Stream(User("bob", 42))
         .covary[IO]
-        .through(Batcher.batch(Producer.Options()))
+        .through(Batcher.batch(Batcher.Options()))
         .collect { case e: Batcher.Batch[User] => e }
         .through(Producer.putRecords(kinesisClient, src))
 
       val forward = srcStream
         .collect { case e: CommitableRecord.WithValue[IO, User] => e }
+        .take(1)
         .map(_.map(_.withId(UUID.randomUUID())))
-        .through(Batcher.batch(Producer.Options()))
+        .through(Batcher.batch(Batcher.Options()))
         .collect { case e: Batcher.Batch[_] => e }
         .through(Producer.putRecords(kinesisClient, dst))
 

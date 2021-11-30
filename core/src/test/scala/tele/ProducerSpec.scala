@@ -37,7 +37,7 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
     fs2.Stream
       .emits(List("data1", "data2", "data3"))
       .covary[IO]
-      .through(Batcher.batch(Producer.Options(), maxEntryCount = 2))
+      .through(Batcher.batch(Batcher.Options().withMaxEntryCount(2)))
       .collect { case e: Batcher.Batch[String] => e }
       .through(Producer.putRecords(kinesisClient, streamName))
       .compile

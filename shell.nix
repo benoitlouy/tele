@@ -8,5 +8,6 @@ in
       pkgs.coursier
       pkgs.${jdk}
       pkgs.sbt
+      pkgs.bloop
     ];
   }
