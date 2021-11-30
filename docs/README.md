@@ -18,7 +18,7 @@ trait Consumer[F[_], A] { self =>
 ## Using
 
 ```scala
-libraryDependencies +=  "com.github.benoitlouy" %% "tele" % "0.1.0-SNAPSHOT"
+libraryDependencies +=  "@ORGANIZATION@" %% "@NAME@" % "@VERSION@"
 ```
 
 ## Examples
@@ -27,16 +27,75 @@ For the following example we will be publishing and consuming `User` records
 represented as
 
 
-```scala
+```scala mdoc:reset-object
 final case class User(name: String, age: Int)
 ```
 
+```scala mdoc:invisible
+import cats.effect.unsafe.implicits.global
+import java.net.URI
+import software.amazon.awssdk.auth.credentials.{ AwsCredentials, AwsCredentialsProvider }
+import software.amazon.awssdk.http.SdkHttpConfigurationOption
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
+import software.amazon.awssdk.utils.AttributeMap
+
+case class AwsCreds(accessKey: String, secretKey: String) extends AwsCredentials with AwsCredentialsProvider {
+  override def accessKeyId(): String = accessKey
+  override def secretAccessKey(): String = secretKey
+  override def resolveCredentials(): AwsCredentials = this
+}
+
+object AwsCreds {
+  val LocalCreds: AwsCreds =
+    AwsCreds("mock-kinesis-access-key", "mock-kinesis-secret-key")
+}
+
+val trustAllCertificates =
+  AttributeMap
+    .builder()
+    .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, java.lang.Boolean.TRUE)
+    .build()
+
+val nettyClient: SdkAsyncHttpClient = NettyNioAsyncHttpClient.builder().buildWithDefaults(trustAllCertificates)
+
+val kinesisClient =
+  KinesisAsyncClient
+    .builder()
+    .httpClient(nettyClient)
+    .region(Region.US_EAST_1)
+    .credentialsProvider(AwsCreds.LocalCreds)
+    .endpointOverride(URI.create(s"https://localhost:4567"))
+    .build()
+
+val cloudwatchClient =
+  CloudWatchAsyncClient
+    .builder()
+    .httpClient(nettyClient)
+    .region(Region.US_EAST_1)
+    .credentialsProvider(AwsCreds.LocalCreds)
+    .endpointOverride(URI.create(s"https://localhost:4566")) // localstack port
+    .build()
+
+val dynamodbClient =
+  DynamoDbAsyncClient
+    .builder()
+    .httpClient(nettyClient)
+    .region(Region.US_EAST_1)
+    .credentialsProvider(AwsCreds.LocalCreds)
+    .endpointOverride(URI.create(s"http://localhost:8000")) // dynamodb-local port
+    .build()
+```
 
 We also need to provide a way to serialize this type. This is accomplished by 
 declaring a implicit instance of `Schema[User]`. In this example we will be 
 using circe to serialize to JSON.
 
-```scala
+```scala mdoc:silent
 import cats.syntax.all._
 import io.circe.generic.auto._, io.circe.parser, io.circe.syntax._
 import tele.Schema
@@ -53,9 +112,8 @@ implicit val userSchema: Schema[User] = new Schema[User] {
 
 ### Producer
 We create a stream containing a few users:
-```scala
+```scala mdoc
 val users = fs2.Stream(User("Alice", 35), User("Bob", 28), User("Carol", 24))
-// users: fs2.Stream[Nothing, User] = Stream(..)
 ```
 
 tele provides 2 ways of publishing records to kinesis:
@@ -63,7 +121,7 @@ tele provides 2 ways of publishing records to kinesis:
   - `putRecords` which publishes records by batch.
 
 #### `putRecord`
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import tele.Producer
 
@@ -88,7 +146,7 @@ large records and will also produce instances of `Batcher.TooLarge[A]`.
 and the batcher is an `fs2.Pipe` with the signature
 `fs2.Pipe[F, A, Batcher.Result[A]]`
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import tele.{ Batcher, Producer }
 
@@ -105,7 +163,7 @@ val result: Vector[Producer.RichPutRecordsResponse[User]] =
 
 ### Consumer
 
-```scala
+```scala mdoc:compile-only
 import cats.effect._
 import tele.{ Consumer, Record }
 
