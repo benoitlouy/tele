@@ -22,9 +22,9 @@ import cats.syntax.all._
 object Batcher {
   final case class Encoded[A](value: A, bytes: Array[Byte], partitionKey: String, size: Int)
 
-  sealed trait Put[A] extends Product with Serializable
+  sealed trait Result[A] extends Product with Serializable
 
-  final case class Batch[A](data: NonEmptyVector[Encoded[A]], size: Int, count: Int) extends Put[A] {
+  final case class Batch[A](data: NonEmptyVector[Encoded[A]], size: Int, count: Int) extends Result[A] {
     def add(encoded: Encoded[A]): Batch[A] =
       copy(data = data :+ encoded, size = size + encoded.size, count = count + 1)
   }
@@ -32,12 +32,12 @@ object Batcher {
     def one[A](encoded: Encoded[A]): Batch[A] = Batch(NonEmptyVector.one(encoded), encoded.size, 1)
   }
 
-  final case class TooLarge[A](encoded: Encoded[A]) extends Put[A]
+  final case class TooLarge[A](encoded: Encoded[A]) extends Result[A]
 
   private final case class Acc[A](complete: Vector[Batch[A]], cur: Option[Batch[A]])
 
-  def batch[F[_], A: SchemaEncoder](opt: Options[A]): fs2.Pipe[F, A, Put[A]] = {
-    def go(s: fs2.Stream[F, A], cur: Option[Batch[A]]): fs2.Pull[F, Put[A], Unit] = {
+  def batch[F[_], A: SchemaEncoder](opt: Options[A]): fs2.Pipe[F, A, Result[A]] = {
+    def go(s: fs2.Stream[F, A], cur: Option[Batch[A]]): fs2.Pull[F, Result[A], Unit] = {
       s.pull.uncons.flatMap {
         case Some((hd, tl)) =>
           val (tooLarge, fit) = hd.partitionEither { a =>
