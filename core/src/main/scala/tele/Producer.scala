@@ -34,6 +34,8 @@ trait Producer[F[_], A] {
 }
 
 object Producer {
+  final case class RichPutRecordResponse[A](underlying: PutRecordResponse, entry: A)
+
   final case class RichPutRecordsResponse[A](underlying: PutRecordsResponse, entries: Seq[RichResultEntry[A]])
   object RichPutRecordsResponse {
     def from[A](records: Vector[A], response: PutRecordsResponse): RichPutRecordsResponse[A] =
@@ -55,6 +57,40 @@ object Producer {
     final case class Success[A](record: A, sequenceNumber: String, shardId: String) extends RichResultEntry[A]
     final case class Failed[A](record: A, code: String, message: String) extends RichResultEntry[A]
   }
+
+  def putRecords[F[_]: Async, A](
+      client: KinesisAsyncClient,
+      stream: String
+    ): fs2.Pipe[F, Batcher.Batch[A], RichPutRecordsResponse[A]] = _.evalMap { batch =>
+    val entries = batch.data.map { encoded =>
+      PutRecordsRequestEntry
+        .builder()
+        .partitionKey(encoded.partitionKey)
+        .data(SdkBytes.fromByteArrayUnsafe(encoded.bytes))
+        .build()
+    }
+    val request = PutRecordsRequest.builder().streamName(stream).records(entries.toVector.asJava).build()
+    FutureLift[F]
+      .lift(client.putRecords(request))
+      .map(response => RichPutRecordsResponse.from(batch.data.map(_.value).toVector, response))
+  }
+
+  def putRecord[F[_]: Async, A: Schema](
+      client: KinesisAsyncClient,
+      stream: String,
+      opt: Options[A]
+    ): fs2.Pipe[F, A, RichPutRecordResponse[A]] =
+    _.evalMap { record =>
+      val bytes = Schema[A].encode(record)
+      val partitionKey = opt.partitionKey(record)
+      val request = PutRecordRequest
+        .builder()
+        .streamName(stream)
+        .partitionKey(partitionKey)
+        .data(SdkBytes.fromByteArrayUnsafe(bytes))
+        .build()
+      FutureLift[F].lift(client.putRecord(request)).map(response => RichPutRecordResponse(response, record))
+    }
 
   def make[F[_]: Async, A: Schema](
       client: KinesisAsyncClient,
