@@ -12,9 +12,19 @@ class BatcherSpec extends munit.FunSuite {
   }
 
   test("batch size limit reached") {
-    val result = fs2.Stream
-      .emits(Vector("data1", "data2", "data3", "data4"))
-      .through(Batcher.batch(Producer.Options[String]().withPartitionKey(_ => "a"), maxBatchSize = 15))
+    val result = fs2
+      .Stream("data1", "data2", "data3", "data4")
+      .through(Batcher.batch(Batcher.Options[String]().withPartitionKey(_ => "a").withMaxBatchSize(15)))
+      .compile
+      .toVector
+      .collect { case Batcher.Batch(buf, _, _) => buf.map(_.value) }
+
+    assertEquals(result, Vector(NonEmptyVector.of("data1", "data2"), NonEmptyVector.of("data3", "data4")))
+  }
+
+  test("batch across chunks") {
+    val result = (fs2.Stream("data1") ++ fs2.Stream("data2") ++ fs2.Stream("data3", "data4"))
+      .through(Batcher.batch(Batcher.Options[String]().withPartitionKey(_ => "a").withMaxBatchSize(15)))
       .compile
       .toVector
       .collect { case Batcher.Batch(buf, _, _) => buf.map(_.value) }
@@ -23,9 +33,9 @@ class BatcherSpec extends munit.FunSuite {
   }
 
   test("batch count limit reached") {
-    val result = fs2.Stream
-      .emits(Vector("data1", "data2", "data3", "data4"))
-      .through(Batcher.batch(Producer.Options[String]().withPartitionKey(_ => "a"), maxEntryCount = 3))
+    val result = fs2
+      .Stream("data1", "data2", "data3", "data4")
+      .through(Batcher.batch(Batcher.Options[String]().withPartitionKey(_ => "a").withMaxEntryCount(3)))
       .compile
       .toVector
       .collect { case Batcher.Batch(buf, _, _) => buf.map(_.value) }
@@ -34,10 +44,10 @@ class BatcherSpec extends munit.FunSuite {
   }
 
   test("exclude large data") {
-    val result = fs2.Stream
-      .emits(Vector("data1", "data2", "tooLarge", "data3", "data4"))
+    val result = fs2
+      .Stream("data1", "data2", "tooLarge", "data3", "data4")
       .through(
-        Batcher.batch(Producer.Options[String]().withPartitionKey(_ => "a"), maxBatchSize = 15, maxEntrySize = 6)
+        Batcher.batch(Batcher.Options[String]().withPartitionKey(_ => "a").withMaxBatchSize(15).withMaxEntrySize(6))
       )
       .compile
       .toVector

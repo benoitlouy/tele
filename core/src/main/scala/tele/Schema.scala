@@ -21,7 +21,7 @@ import cats.{ Contravariant, Functor, Invariant }
 final case class DecodingFailure(msg: String, cause: Throwable) extends Exception(msg, cause)
 
 object DecodingFailure {
-  def apply(msg: String): DecodingFailure = DecodingFailure(msg, null)
+  def apply(msg: String): DecodingFailure = DecodingFailure(msg, null) // scalafix:ok
 }
 
 trait SchemaEncoder[A] {

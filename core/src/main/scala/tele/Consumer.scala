@@ -39,7 +39,6 @@ import software.amazon.kinesis.retrieval.RetrievalConfig
 import software.amazon.kinesis.retrieval.polling.PollingConfig
 
 import tele.internal.{ FutureLift, RecordProcessor, WorkerStartedListener }
-import fs2.Chunk
 
 trait Consumer[F[_], A] { self =>
   def subscribe: Resource[F, fs2.Stream[F, A]]
@@ -97,7 +96,7 @@ object Consumer {
       override def subscribe: Resource[F, fs2.Stream[F, CommitableRecord[F]]] =
         for {
           dispatcher <- std.Dispatcher[F]
-          queue <- Resource.eval(std.Queue.bounded[F, Chunk[CommitableRecord[F]]](capacity))
+          queue <- Resource.eval(std.Queue.bounded[F, fs2.Chunk[CommitableRecord[F]]](capacity))
           startFlag <- Resource.eval(Deferred[F, Unit])
           stopFlag <- Resource.eval(SignallingRef[F, Boolean](false))
           scheduler = schedulerFactory(
@@ -252,7 +251,8 @@ object Consumer {
     }
   }
 
-  implicit class CommitableRecordConsumerOps[F[_]](val consumer: Consumer[F, CommitableRecord[F]]) extends AnyVal {
+  implicit class CommitableRecordConsumerOps[F[_]](private val consumer: Consumer[F, CommitableRecord[F]])
+    extends AnyVal {
     def withSchema[A: SchemaDecoder]: Consumer[F, Record.WithData[F, A]] = consumer.map { commitableRecord =>
       val buf = commitableRecord.record.data()
       val pos = buf.position()

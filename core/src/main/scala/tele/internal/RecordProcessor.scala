@@ -26,14 +26,13 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord
 import software.amazon.kinesis.retrieval.kpl.ExtendedSequenceNumber
 
 import tele.CommitableRecord
-import fs2.Chunk
 
 private[tele] class RecordProcessor[F[_]: Async](
-    callback: Chunk[CommitableRecord[F]] => Unit,
+    callback: fs2.Chunk[CommitableRecord[F]] => Unit,
     dispatcher: std.Dispatcher[F])
   extends ShardRecordProcessor {
-  private[tele] var shardId: String = _
-  private[tele] var extendedSequenceNumber: ExtendedSequenceNumber = _
+  private[tele] var shardId: String = _ // scalafix:ok
+  private[tele] var extendedSequenceNumber: ExtendedSequenceNumber = _ // scalafix:ok
   private val lastCheckpoint: std.Queue[F, Option[(String, Long)]] =
     dispatcher.unsafeRunSync(std.Queue.bounded[F, Option[(String, Long)]](1))
 
@@ -61,7 +60,7 @@ private[tele] class RecordProcessor[F[_]: Async](
     val commitableRecords = processRecords.records().asScala.map { record =>
       CommitableRecord(record, commit(record, checkpointer))
     }
-    callback(Chunk.buffer(commitableRecords))
+    callback(fs2.Chunk.buffer(commitableRecords))
   }
 
   override def leaseLost(x: LeaseLostInput): Unit = ()

@@ -51,7 +51,8 @@ object Producer {
   sealed trait RichResultEntry[A] extends Product with Serializable
   object RichResultEntry {
     def from[A](record: A, entry: PutRecordsResultEntry): RichResultEntry[A] =
-      if (entry.shardId() != null) RichResultEntry.Success(record, entry.sequenceNumber(), entry.shardId())
+      if (entry.shardId() != null) // scalafix:ok
+        RichResultEntry.Success(record, entry.sequenceNumber(), entry.shardId())
       else RichResultEntry.Failed(record, entry.errorCode(), entry.errorMessage())
 
     final case class Success[A](record: A, sequenceNumber: String, shardId: String) extends RichResultEntry[A]

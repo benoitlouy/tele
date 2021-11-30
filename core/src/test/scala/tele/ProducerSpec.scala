@@ -18,7 +18,7 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
     val test = for {
       response <- producer.putRecord("data")
-    } yield response.sequenceNumber() != null && response.shardId() != null
+    } yield response.sequenceNumber() != null && response.shardId() != null // scalafix:ok
 
     test.assert
   }
@@ -37,7 +37,7 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
     fs2.Stream
       .emits(List("data1", "data2", "data3"))
       .covary[IO]
-      .through(Batcher.batch(Producer.Options(), maxEntryCount = 2))
+      .through(Batcher.batch(Batcher.Options().withMaxEntryCount(2)))
       .collect { case e: Batcher.Batch[String] => e }
       .through(Producer.putRecords(kinesisClient, streamName))
       .compile
@@ -57,7 +57,11 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
         for {
           _ <- IO(assertEquals(res.map(_.entry), Vector("data1", "data2", "data3")))
           _ <- res.traverse_(response =>
-            IO(assert(response.underlying.sequenceNumber() != null && response.underlying.shardId() != null))
+            IO(
+              assert(
+                response.underlying.sequenceNumber() != null && response.underlying.shardId() != null // scalafix:ok
+              )
+            )
           )
         } yield ()
       }

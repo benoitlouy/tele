@@ -10,6 +10,15 @@ ThisBuild / organizationName := "Benoit Louy"
 ThisBuild / startYear := Some(2021)
 ThisBuild / licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+
+ThisBuild / Test / testOptions += Tests.Argument(
+  new TestFramework("munit.Framework"),
+  "+l"
+)
+
 val isDotty = Def.setting(
   CrossVersion.partialVersion(scalaVersion.value).exists(_._1 == 3)
 )
