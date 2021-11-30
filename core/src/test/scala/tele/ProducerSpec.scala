@@ -1,7 +1,8 @@
 package tele
 
-import cats.effect._
 import cats.data.NonEmptyVector
+import cats.effect._
+import cats.syntax.all._
 
 class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
@@ -30,6 +31,36 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
     } yield response.entries.collect { case e: Producer.RichResultEntry.Success[String] => e }.length == 3
 
     test.assert
+  }
+
+  stream.test("putRecords sink") { streamName =>
+    fs2.Stream
+      .emits(List("data1", "data2", "data3"))
+      .covary[IO]
+      .through(Batcher.batch(Producer.Options(), maxEntryCount = 2))
+      .collect { case e: Batcher.Batch[String] => e }
+      .through(Producer.putRecords(kinesisClient, streamName))
+      .compile
+      .toVector
+      .map(_.map(_.entries.collect { case e: Producer.RichResultEntry.Success[String] => e.record }))
+      .flatMap(res => IO(assertEquals(res, Vector(Vector("data1", "data2"), Vector("data3")))))
+  }
+
+  stream.test("putRecord sink".only) { streamName =>
+    fs2.Stream
+      .emits(List("data1", "data2", "data3"))
+      .covary[IO]
+      .through(Producer.putRecord(kinesisClient, streamName, Producer.Options()))
+      .compile
+      .toVector
+      .flatMap { res =>
+        for {
+          _ <- IO(assertEquals(res.map(_.entry), Vector("data1", "data2", "data3")))
+          _ <- res.traverse_(response =>
+            IO(assert(response.underlying.sequenceNumber() != null && response.underlying.shardId() != null))
+          )
+        } yield ()
+      }
   }
 
 }
