@@ -46,7 +46,7 @@ class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
       .flatMap(res => IO(assertEquals(res, Vector(Vector("data1", "data2"), Vector("data3")))))
   }
 
-  stream.test("putRecord sink".only) { streamName =>
+  stream.test("putRecord sink") { streamName =>
     fs2.Stream
       .emits(List("data1", "data2", "data3"))
       .covary[IO]
