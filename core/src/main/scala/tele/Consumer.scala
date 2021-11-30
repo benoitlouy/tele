@@ -253,13 +253,13 @@ object Consumer {
   }
 
   implicit class CommitableRecordConsumerOps[F[_]](val consumer: Consumer[F, CommitableRecord[F]]) extends AnyVal {
-    def withSchema[A: Schema]: Consumer[F, DeserializedRecord[F, A]] = consumer.map { commitableRecord =>
+    def withSchema[A: SchemaDecoder]: Consumer[F, Record.WithData[F, A]] = consumer.map { commitableRecord =>
       val buf = commitableRecord.record.data()
       val pos = buf.position()
       val bytes = Array.ofDim[Byte](buf.remaining())
       buf.get(bytes)
       buf.position(pos)
-      Schema[A].decode(bytes) match {
+      SchemaDecoder[A].decode(bytes) match {
         case Right(a) => commitableRecord.withValue(a)
         case Left(err) => commitableRecord.withError(err)
       }

@@ -83,4 +83,34 @@ trait KinesisSpec { self: munit.CatsEffectSuite =>
     } yield name
   }
 
+  val streams2 = ResourceFixture {
+    val gen = new Random
+    for {
+      name1 <- Resource.eval(IO(gen.alphanumeric.take(30).mkString))
+      name2 <- Resource.eval(IO(gen.alphanumeric.take(30).mkString))
+      _ <- Resource.make(
+        FutureLift[IO]
+          .lift(
+            kinesisClient.createStream(CreateStreamRequest.builder().streamName(name1).shardCount(1).build())
+          )
+          .void
+      )(_ =>
+        FutureLift[IO]
+          .lift(kinesisClient.deleteStream(DeleteStreamRequest.builder().streamName(name1).build()))
+          .void
+      )
+      _ <- Resource.make(
+        FutureLift[IO]
+          .lift(
+            kinesisClient.createStream(CreateStreamRequest.builder().streamName(name2).shardCount(1).build())
+          )
+          .void
+      )(_ =>
+        FutureLift[IO]
+          .lift(kinesisClient.deleteStream(DeleteStreamRequest.builder().streamName(name2).build()))
+          .void
+      )
+    } yield (name1, name2)
+  }
+
 }

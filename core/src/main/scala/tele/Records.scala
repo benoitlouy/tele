@@ -16,18 +16,50 @@
 
 package tele
 
+import cats.Functor
+import cats.syntax.all._
 import software.amazon.kinesis.retrieval.KinesisClientRecord
 
-final case class CommitableRecord[F[_]](record: KinesisClientRecord, commit: F[Unit]) {
-  def withValue[A](value: A): DeserializedRecord.WithValue[F, A] = DeserializedRecord.WithValue(value, this)
-  def withError(error: DecodingFailure): DeserializedRecord.WithError[F] = DeserializedRecord.WithError(error, this)
+sealed trait Record[F[_]] {
+  def record: KinesisClientRecord
+  def commit: F[Unit]
 }
 
-sealed abstract class DeserializedRecord[F[_], +A] extends Product with Serializable {
-  val underlying: CommitableRecord[F]
+object Record {
+  sealed trait WithData[F[_], +A] extends Record[F]
+
+  object WithData {
+    implicit def withDataFunctor[F[_]]: Functor[WithData[F, *]] = new Functor[WithData[F, *]] {
+      override def map[A, B](fa: WithData[F, A])(f: A => B): WithData[F, B] =
+        fa match {
+          case v: CommitableRecord.WithValue[F, A] => v.map(f)
+          case e: CommitableRecord.WithError[F] => e
+        }
+    }
+  }
 }
-object DeserializedRecord {
-  final case class WithValue[F[_], A](value: A, underlying: CommitableRecord[F]) extends DeserializedRecord[F, A]
-  final case class WithError[F[_]](error: DecodingFailure, underlying: CommitableRecord[F])
-    extends DeserializedRecord[F, Nothing]
+
+final case class CommitableRecord[F[_]](record: KinesisClientRecord, commit: F[Unit]) extends Record[F] {
+  def withValue[A](value: A): CommitableRecord.WithValue[F, A] = CommitableRecord.WithValue(value, record, commit)
+  def withError(error: DecodingFailure): CommitableRecord.WithError[F] =
+    CommitableRecord.WithError(error, record, commit)
+}
+
+object CommitableRecord {
+  final case class WithValue[F[_], A](value: A, record: KinesisClientRecord, commit: F[Unit])
+    extends Record.WithData[F, A]
+
+  object WithValue {
+    implicit def withValueFunctor[F[_]]: Functor[WithValue[F, *]] = new Functor[WithValue[F, *]] {
+      override def map[A, B](fa: WithValue[F, A])(f: A => B): WithValue[F, B] =
+        CommitableRecord.WithValue(f(fa.value), fa.record, fa.commit)
+    }
+
+    implicit def withValueSchemaEncoder[F[_], A: SchemaEncoder]: SchemaEncoder[WithValue[F, A]] =
+      new SchemaEncoder[WithValue[F, A]] {
+        override def encode(a: WithValue[F, A]): Array[Byte] = SchemaEncoder[A].encode(a.value)
+      }
+  }
+  final case class WithError[F[_]](error: DecodingFailure, record: KinesisClientRecord, commit: F[Unit])
+    extends Record.WithData[F, Nothing]
 }

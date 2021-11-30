@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Benoit Louy
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package tele
 
 import cats.data.NonEmptyVector
@@ -25,7 +41,7 @@ object Batcher {
     def empty[A]: Acc[A] = Acc(Vector.empty, None)
   }
 
-  def batch[F[_], A: Schema](
+  def batch[F[_], A: SchemaEncoder](
       opt: Producer.Options[A],
       maxEntrySize: Int = 1000000, // 1MB
       maxBatchSize: Int = 5000000, // 5MB
@@ -33,7 +49,7 @@ object Batcher {
     ): fs2.Pipe[F, A, Put[A]] = in => {
     in.mapChunks { chunk =>
       val (tooLarge, fit) = chunk.partitionEither { a =>
-        val bytes = Schema[A].encode(a)
+        val bytes = SchemaEncoder[A].encode(a)
         val partitionKey = opt.partitionKey(a)
         val size = bytes.length + partitionKey.getBytes().length
         val encoded = Encoded(a, bytes, partitionKey, size)
