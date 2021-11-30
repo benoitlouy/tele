@@ -32,7 +32,7 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
     val consumer = Consumer
       .make[IO](
         2,
-        "test",
+        UUID.randomUUID().toString(),
         UUID.randomUUID().toString(),
         streamName,
         kinesisClient,
@@ -57,7 +57,7 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
     val consumer = Consumer
       .make[IO](
         2,
-        "test",
+        UUID.randomUUID().toString(),
         UUID.randomUUID().toString(),
         streamName,
         kinesisClient,
@@ -82,7 +82,7 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
     val consumer = Consumer
       .make[IO](
         2,
-        "test",
+        UUID.randomUUID().toString(),
         UUID.randomUUID().toString(),
         streamName,
         kinesisClient,
@@ -116,7 +116,7 @@ class ConsumerSpec extends munit.CatsEffectSuite with KinesisSpec {
     val consumer = Consumer
       .make[IO](
         2,
-        "test",
+        UUID.randomUUID().toString(),
         UUID.randomUUID().toString(),
         streamName,
         kinesisClient,

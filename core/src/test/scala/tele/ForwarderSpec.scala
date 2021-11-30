@@ -64,11 +64,29 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
         .withShardSyncInterval(1.second)
 
     val consumerSrc = Consumer
-      .make[IO](100, "test", UUID.randomUUID().toString(), src, kinesisClient, dynamoClient, cloudwatchClient, opt)
+      .make[IO](
+        100,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        src,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
       .withSchema[User]
 
     val consumerDst = Consumer
-      .make[IO](100, "test2", UUID.randomUUID().toString(), dst, kinesisClient, dynamoClient, cloudwatchClient, opt)
+      .make[IO](
+        100,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        dst,
+        kinesisClient,
+        dynamoClient,
+        cloudwatchClient,
+        opt
+      )
       .withSchema[User.WithId]
 
     consumerSrc.subscribe.parProduct(consumerDst.subscribe).use { case (srcStream, dstStream) =>
@@ -78,6 +96,7 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
         .through(Batcher.batch(Producer.Options()))
         .collect { case e: Batcher.Batch[User] => e }
         .through(Producer.putRecords(kinesisClient, src))
+
       val forward = srcStream
         .collect { case e: CommitableRecord.WithValue[IO, User] => e }
         .map(_.map(_.withId(UUID.randomUUID())))
