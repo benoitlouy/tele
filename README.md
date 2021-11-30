@@ -5,12 +5,22 @@
 tele is a Kinesis client providing fs2 interfaces to produce and consume from Kinesis streams.
 
 ```scala
-trait Producer[F[_], A] {
-  def putRecord(record: A): F[PutRecordResponse]
-  def putRecords(records: NonEmptyVector[A]): F[RichPutRecordsResponse[A]]
+object Producer {
+
+  def putRecord[F[_]: Async, A: SchemaEncoder](
+      client: KinesisAsyncClient,
+      stream: String,
+      opt: Options[A]
+    ): fs2.Pipe[F, A, RichPutRecordResponse[A]]
+
+  def putRecords[F[_]: Async, A](
+      client: KinesisAsyncClient,
+      stream: String
+    ): fs2.Pipe[F, Batcher.Batch[A], RichPutRecordsResponse[A]]
+
 }
 
-trait Consumer[F[_], A] { self =>
+trait Consumer[F[_], A] {
   def subscribe: Resource[F, fs2.Stream[F, A]]
 }
 ```
