@@ -59,8 +59,8 @@ val users = fs2.Stream(User("Alice", 35), User("Bob", 28), User("Carol", 24))
 ```
 
 tele provides 2 ways of publishing records to kinesis:
-  - using `putRecord` which publishes records one by one.
-  - using `putRecords` which publishes records by batch.
+  - `putRecord` which publishes records one by one.
+  - `putRecords` which publishes records by batch.
 
 #### `putRecord`
 ```scala
@@ -78,14 +78,15 @@ val result: Vector[Producer.RichPutRecordResponse[User]] =
 
 #### `putRecords`
 Before being able to call `putRecords`, records must be batched. For this purpose
-`tele` provides a `Batcher` which will group records in `Batcher.Batch[A]`
+`tele` provides a `Batcher` which groups records in `Batcher.Batch[A]`
 where `A` is the record type (`User` in this example).
 
 Because Kinesis limits the size of individual records, the batcher will detect
 large records and will also produce instances of `Batcher.TooLarge[A]`.
 
 `Batcher.Batch[A]` and `Batcher.TooLarge[A]` form the ADT `Batcher.Result[A]`
-and the batcher is an fs2.Pipe with the type `fs2.Pipe[F, A, Result[A]]`
+and the batcher is an `fs2.Pipe` with the signature
+`fs2.Pipe[F, A, Batcher.Result[A]]`
 
 ```scala
 import cats.effect._
@@ -124,7 +125,7 @@ val result: Vector[Record.WithData[IO, User]] = consumer.subscribe.use { users =
 }.unsafeRunSync()
 ```
 
-`Record.WithData[F[_], A]` is an ADT which indicate if the data received could be
-deserialized to an instance of `A`. The members of this ADT are:
+`Record.WithData[F[_], A]` is an ADT which indicates if the data received could
+be deserialized to an instance of `A`. The members of this ADT are:
   - `CommitableRecord.WithValue[F[_], A]` when deserialization was successful
   - `CommitableRecord.WithError[F[_]]` when deserialization failed
