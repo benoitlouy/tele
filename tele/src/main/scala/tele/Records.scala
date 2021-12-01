@@ -29,7 +29,7 @@ object Record {
   sealed trait WithData[F[_], +A] extends Record[F]
 
   object WithData {
-    implicit def withDataFunctor[F[_]]: Functor[WithData[F, *]] = new Functor[WithData[F, *]] {
+    implicit def withDataFunctor[F[_]]: Functor[WithData[F, _]] = new Functor[WithData[F, _]] {
       override def map[A, B](fa: WithData[F, A])(f: A => B): WithData[F, B] =
         fa match {
           case v: CommitableRecord.WithValue[F, A] => v.map(f)
@@ -50,7 +50,7 @@ object CommitableRecord {
     extends Record.WithData[F, A]
 
   object WithValue {
-    implicit def withValueFunctor[F[_]]: Functor[WithValue[F, *]] = new Functor[WithValue[F, *]] {
+    implicit def withValueFunctor[F[_]]: Functor[WithValue[F, _]] = new Functor[WithValue[F, _]] {
       override def map[A, B](fa: WithValue[F, A])(f: A => B): WithValue[F, B] =
         CommitableRecord.WithValue(f(fa.value), fa.record, fa.commit)
     }
