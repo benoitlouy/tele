@@ -28,7 +28,7 @@ trait Consumer[F[_], A] {
 ## Using
 
 ```scala
-libraryDependencies +=  "com.github.benoitlouy" %% "tele" % "0.1.0-SNAPSHOT"
+libraryDependencies +=  "io.github.benoitlouy" %% "tele" % "0.1.0-SNAPSHOT"
 ```
 
 ## Examples
