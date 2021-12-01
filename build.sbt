@@ -120,7 +120,9 @@ val publishSettings = Seq(
 )
 
 val noPublishSettings = Seq(
-  publish := {},
-  publishLocal := {},
+  publish / skip := true,
+  publishLocal / skip := true,
   publishArtifact := false
 )
+
+usePgpKeyHex("6B4EA2C6E2FC6A8EC9E8102EAA1014BFFF5A28BF")
