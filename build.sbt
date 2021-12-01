@@ -37,16 +37,10 @@ val isDotty = Def.setting(
   CrossVersion.partialVersion(scalaVersion.value).exists(_._1 == 3)
 )
 
-ThisBuild / scalacOptions ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((3, _)) => Seq("-Ykind-projector:underscores")
-    case Some((2, 13)) | Some((2, 12)) => Seq("-Xsource:3", "-P:kind-projector:underscore-placeholders")
-    case _ => Nil
-  }
-}
-
 lazy val tele = project
   .settings(
+    publishSettings,
+    kindProjectorSettings,
     libraryDependencies ++= Seq(
       L.collectionCompat,
       L.kinesis,
@@ -63,7 +57,6 @@ lazy val tele = project
         Seq(compilerPlugin(L.kindProjector.cross(CrossVersion.full)))
     )
   )
-  .settings(publishSettings)
 
 lazy val docs =
   project
@@ -88,6 +81,14 @@ lazy val root = project
     name := "tele"
   )
   .aggregate(tele)
+
+val kindProjectorSettings = Seq(scalacOptions ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((3, _)) => Seq("-Ykind-projector:underscores")
+    case Some((2, 13)) | Some((2, 12)) => Seq("-Xsource:3", "-P:kind-projector:underscore-placeholders")
+    case _ => Nil
+  }
+})
 
 val publishSettings = Seq(
   publishMavenStyle := true,
