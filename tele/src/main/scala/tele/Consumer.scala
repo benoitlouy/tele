@@ -245,7 +245,7 @@ object Consumer {
       )
   }
 
-  implicit def consumerFunctorInstance[F[_]]: Functor[Consumer[F, *]] = new Functor[Consumer[F, *]] {
+  implicit def consumerFunctorInstance[F[_]]: Functor[Consumer[F, _]] = new Functor[Consumer[F, _]] {
     override def map[A, B](fa: Consumer[F, A])(f: A => B): Consumer[F, B] = new Consumer[F, B] {
       override def subscribe: Resource[F, fs2.Stream[F, B]] = fa.subscribe.map(_.map(f))
     }
