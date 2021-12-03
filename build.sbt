@@ -114,9 +114,9 @@ val publishSettings = Seq(
     commitReleaseVersion,
     tagRelease,
     releaseStepCommandAndRemaining("+publishSigned"),
+    releaseStepCommand("sonatypeBundleRelease"),
     setNextVersion,
     commitNextVersion,
-    releaseStepCommand("sonatypeBundleRelease"),
     pushChanges
   )
 )
