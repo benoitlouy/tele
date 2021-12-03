@@ -104,7 +104,7 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
         .take(1)
         .map(_.map(_.withId(UUID.randomUUID())))
         .through(Batcher.batch(Batcher.Options()))
-        .collect { case e: Batcher.Batch[_] => e }
+        .collect { case e: Batcher.Batch[CommitableRecord.WithValue[IO, User.WithId]] => e }
         .through(Producer.putRecords(kinesisClient, dst))
 
       for {

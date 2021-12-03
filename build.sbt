@@ -76,6 +76,7 @@ lazy val docs =
 
 lazy val root = project
   .in(file("."))
+  .settings(publishSettings)
   .settings(noPublishSettings)
   .settings(
     name := "tele"

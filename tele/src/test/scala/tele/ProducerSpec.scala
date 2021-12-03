@@ -6,7 +6,7 @@ import cats.syntax.all._
 
 class ProducerSpec extends munit.CatsEffectSuite with KinesisSpec {
 
-  implicit val stringSchema = new Schema[String] {
+  implicit val stringSchema: Schema[String] = new Schema[String] {
     override def encode(a: String): Array[Byte] = a.getBytes()
 
     override def decode(bytes: Array[Byte]): Either[DecodingFailure, String] = Right(new String(bytes))
