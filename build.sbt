@@ -101,7 +101,7 @@ val publishSettings = Seq(
     GitHubHosting(user = "benoitlouy", repository = "tele", email = "benoit.louy+oss@fastmail.com")
   ),
   Test / publishArtifact := false,
-  releaseTagName := s"${version.value}",
+  releaseTagName := s"v${version.value}",
   releaseVcsSign := true,
   releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseCrossBuild := true,
