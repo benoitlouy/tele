@@ -31,4 +31,4 @@ jobs:
         uses: cachix/install-nix-action@v12
 
       - name: "Run with ${{ matrix.java }} 🚀"
-        run: nix-shell --argstr jdk "${{ matrix.java }}" --run "sbt test" nix/ci.nix
+        run: nix-shell --argstr jdk "${{ matrix.java }}" --run "sbt +test" nix/ci.nix
