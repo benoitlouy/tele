@@ -75,7 +75,7 @@ class BatcherSpec extends munit.CatsEffectSuite {
 
   test("timeout") {
     val result = (fs2.Stream("data1", "data2") ++ fs2.Stream.sleep_[IO](200.millis) ++ fs2.Stream("data3", "data4"))
-      .through(Batcher.batch(Batcher.Options[String]().withTimeout(150.millis)))
+      .through(Batcher.batch(Batcher.Options[String]().withTimeout(50.millis)))
       .compile
       .toVector
       .map(_.collect { case Batcher.Batch(buf, _, _) => buf.map(_.value) })
