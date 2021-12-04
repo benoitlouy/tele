@@ -1,4 +1,6 @@
 # tele
+[![maven](https://maven-badges.herokuapp.com/maven-central/io.github.benoitlouy/tele_2.13/badge.svg)](https://search.maven.org/artifact/io.github.benoitlouy/tele_2.13)
+[![scalaci](https://github.com/benoitlouy/tele/workflows/Scala/badge.svg)](https://github.com/benoitlouy/tele/actions?query=workflow%3A%22Scala%22)
 
 ## Overview
 
