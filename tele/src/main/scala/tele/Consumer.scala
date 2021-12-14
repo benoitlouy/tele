@@ -192,7 +192,7 @@ object Consumer {
       supervisor
         .supervise(
           Async[F]
-            .interruptible(false)(scheduler.run())
+            .interruptible(scheduler.run())
             .flatTap(_ => stopFlag.set(true))
         )
         .flatTap(_ => startFlag.get)
