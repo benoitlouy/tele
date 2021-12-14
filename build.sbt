@@ -83,13 +83,22 @@ lazy val root = project
   )
   .aggregate(tele)
 
-val kindProjectorSettings = Seq(scalacOptions ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((3, _)) => Seq("-Ykind-projector:underscores")
-    case Some((2, 13)) | Some((2, 12)) => Seq("-Xsource:3", "-P:kind-projector:underscore-placeholders")
-    case _ => Nil
+val kindProjectorSettings = Seq(
+  scalacOptions := {
+    val opts = scalacOptions.value
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((3, _)) => opts.filterNot(_.startsWith("-Ykind-projector"))
+      case _ => opts
+    }
+  },
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((3, _)) => Seq("-Ykind-projector:underscores")
+      case Some((2, 13)) | Some((2, 12)) => Seq("-Xsource:3", "-P:kind-projector:underscore-placeholders")
+      case _ => Nil
+    }
   }
-})
+)
 
 val publishSettings = Seq(
   publishMavenStyle := true,

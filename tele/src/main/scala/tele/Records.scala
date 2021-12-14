@@ -32,7 +32,7 @@ object Record {
     implicit def withDataFunctor[F[_]]: Functor[WithData[F, _]] = new Functor[WithData[F, _]] {
       override def map[A, B](fa: WithData[F, A])(f: A => B): WithData[F, B] =
         fa match {
-          case v: CommitableRecord.WithValue[F, A] => v.map(f)
+          case v: CommitableRecord.WithValue[F, a] => v.map(f)
           case e: CommitableRecord.WithError[F] => e
         }
     }
