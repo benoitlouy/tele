@@ -74,7 +74,7 @@ lazy val root = project
   )
   .aggregate(tele)
 
-val publishSettings = Seq(
+val publishSettings: Seq[Setting[_]] = Seq(
   publishMavenStyle := true,
   pomIncludeRepository := { _ => false },
   publishTo := sonatypePublishToBundle.value,
@@ -95,6 +95,9 @@ val publishSettings = Seq(
     runTest,
     setReleaseVersion,
     commitReleaseVersion,
+    releaseStepInputTask(docs / mdoc),
+    releaseStepCommand("git add README.md"),
+    releaseStepCommand("""git commit -m "update README""""),
     tagRelease,
     releaseStepCommandAndRemaining("+publishSigned"),
     releaseStepCommand("sonatypeBundleRelease"),
