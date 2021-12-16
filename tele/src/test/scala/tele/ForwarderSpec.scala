@@ -99,19 +99,21 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
         .collect { case e: Batcher.Batch[User] => e }
         .through(Producer.putRecords(kinesisClient, src))
 
+      import CommitableRecord.WithValue.deriveSchemaEncoder._
+
       val forward = srcStream
-        .collect { case e: CommitableRecord.WithValue[IO, User] => e }
+        .collect { case r @ CommitableRecord.WithValue(_, _, _) => r }
+        .map(_.map(_.withId(UUID.randomUUID)))
         .take(1)
-        .map(_.map(_.withId(UUID.randomUUID())))
         .through(Batcher.batch(Batcher.Options()))
-        .collect { case e: Batcher.Batch[CommitableRecord.WithValue[IO, User.WithId]] => e }
+        .collect { case e: Batcher.Batch[CommitableRecord.WithValue[IO, _]] => e }
         .through(Producer.putRecords(kinesisClient, dst))
 
       for {
         data <- dstStream.concurrently(forward).concurrently(publish).take(1).compile.toVector
         _ <- IO(
           assertEquals(
-            data.collect { case r: CommitableRecord.WithValue[IO, User.WithId] => r.value.user },
+            data.collect { case CommitableRecord.WithValue(value, _, _) => value.user },
             Vector(User("bob", 42))
           )
         )
@@ -119,4 +121,5 @@ class ForwarderSpec extends munit.CatsEffectSuite with KinesisSpec {
     }
 
   }
+
 }

@@ -6,7 +6,7 @@ val Scala212 = "2.12.15"
 val Scala213 = "2.13.7"
 val Scala3 = "3.1.0"
 
-ThisBuild / scalaVersion := Scala213
+ThisBuild / scalaVersion := Scala3
 ThisBuild / crossScalaVersions := Seq(Scala3, Scala213, Scala212)
 
 ThisBuild / organization := "io.github.benoitlouy"
@@ -33,14 +33,9 @@ ThisBuild / Test / testOptions += Tests.Argument(
   "+l"
 )
 
-val isDotty = Def.setting(
-  CrossVersion.partialVersion(scalaVersion.value).exists(_._1 == 3)
-)
-
 lazy val tele = project
   .settings(
     publishSettings,
-    kindProjectorSettings,
     libraryDependencies ++= Seq(
       L.collectionCompat,
       L.kinesis,
@@ -51,10 +46,6 @@ lazy val tele = project
       L.logback % Test,
       L.circeCore % Test,
       L.circeParser % Test
-    ) ++ (
-      if (isDotty.value) Nil
-      else
-        Seq(compilerPlugin(L.kindProjector.cross(CrossVersion.full)))
     )
   )
 
@@ -82,23 +73,6 @@ lazy val root = project
     name := "tele"
   )
   .aggregate(tele)
-
-val kindProjectorSettings = Seq(
-  scalacOptions := {
-    val opts = scalacOptions.value
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((3, _)) => opts.filterNot(_.startsWith("-Ykind-projector"))
-      case _ => opts
-    }
-  },
-  scalacOptions ++= {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((3, _)) => Seq("-Ykind-projector:underscores")
-      case Some((2, 13)) | Some((2, 12)) => Seq("-Xsource:3", "-P:kind-projector:underscore-placeholders")
-      case _ => Nil
-    }
-  }
-)
 
 val publishSettings = Seq(
   publishMavenStyle := true,
