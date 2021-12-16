@@ -21,8 +21,8 @@ import java.util.Date
 
 import scala.concurrent.duration._
 
-import cats.Functor
 import cats.effect._
+import cats.effect.syntax.all._
 import cats.syntax.all._
 import fs2.concurrent.SignallingRef
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient
@@ -42,6 +42,9 @@ import tele.internal.{ FutureLift, RecordProcessor, WorkerStartedListener }
 
 trait Consumer[F[_], A] { self =>
   def subscribe: Resource[F, fs2.Stream[F, A]]
+  def map[B](f: A => B): Consumer[F, B] = new Consumer[F, B] {
+    override def subscribe: Resource[F, fs2.Stream[F, B]] = self.subscribe.map(_.map(f))
+  }
 }
 
 object Consumer {
@@ -182,21 +185,13 @@ object Consumer {
       )
   }
 
-  private def startScheduler[F[_]: Async](
+  def startScheduler[F[_]: Async](
       scheduler: Scheduler,
       startFlag: Deferred[F, Unit],
       stopFlag: SignallingRef[F, Boolean]
     ): Resource[F, Unit] = for {
-    supervisor <- std.Supervisor[F]
-    _ <- Resource.make(
-      supervisor
-        .supervise(
-          Async[F]
-            .interruptible(false)(scheduler.run())
-            .flatTap(_ => stopFlag.set(true))
-        )
-        .flatTap(_ => startFlag.get)
-    )(fiber => FutureLift[F].lift(scheduler.startGracefulShutdown()).flatTap(_ => fiber.join).void)
+    _ <- Async[F].interruptible(scheduler.run()).flatTap(_ => stopFlag.set(true)).background
+    _ <- Resource.make(startFlag.get)(_ => FutureLift[F].lift(scheduler.startGracefulShutdown()).void)
   } yield ()
 
   sealed trait Options {
@@ -243,12 +238,6 @@ object Consumer {
         parentShardPollInterval = 10.seconds,
         shardSyncInterval = 60.seconds
       )
-  }
-
-  implicit def consumerFunctorInstance[F[_]]: Functor[Consumer[F, _]] = new Functor[Consumer[F, _]] {
-    override def map[A, B](fa: Consumer[F, A])(f: A => B): Consumer[F, B] = new Consumer[F, B] {
-      override def subscribe: Resource[F, fs2.Stream[F, B]] = fa.subscribe.map(_.map(f))
-    }
   }
 
   implicit class CommitableRecordConsumerOps[F[_]](private val consumer: Consumer[F, CommitableRecord[F]])

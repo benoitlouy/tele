@@ -6,6 +6,7 @@
   </appender>
   <logger name="software.amazon" level="${AWSV2_LOG_LEVEL:-ERROR}"/>
   <logger name="software.amazon.kinesis.retrieval.polling.PrefetchRecordsPublisher" level="${AWSV2_LOG_LEVEL:-OFF}"/>
+  <logger name="software.amazon.kinesis.coordinator.Scheduler" level="${AWSV2_LOG_LEVEL:-OFF}"/>
   <root level="${ROOT_LOG_LEVEL:-ERROR}">
     <appender-ref ref="STDOUT" />
   </root>
