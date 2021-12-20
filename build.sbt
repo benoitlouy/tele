@@ -5,9 +5,9 @@ import xerial.sbt.Sonatype._
 val Scala212 = "2.12.15"
 val Scala213 = "2.13.7"
 val Scala3 = "3.1.0"
+val ScalaVersions = Seq(Scala3, Scala212, Scala213)
 
 ThisBuild / scalaVersion := Scala212
-ThisBuild / crossScalaVersions := Seq(Scala3, Scala213, Scala212)
 
 ThisBuild / organization := "io.github.benoitlouy"
 ThisBuild / organizationName := "Benoit Louy"
@@ -33,29 +33,47 @@ ThisBuild / Test / testOptions += Tests.Argument(
   "+l"
 )
 
-lazy val tele = project
+def kinesisDependencies(proj: Project): Project = {
+  proj.settings(
+    libraryDependencies ++= {
+      if (virtualAxes.value.contains(VirtualAxis.jvm))
+        Seq(
+          D.kinesis,
+          D.kinesisClient,
+          D.logback % Test
+        )
+      else Seq()
+    }
+  )
+}
+
+lazy val tele = projectMatrix
+  .jvmPlatform(scalaVersions = ScalaVersions)
+  .configure(kinesisDependencies)
   .settings(
     publishSettings,
     libraryDependencies ++= Seq(
-      L.collectionCompat,
-      L.kinesis,
-      L.kinesisClient,
-      L.catsEffect,
-      L.fs2,
-      L.munitCatsEffect % Test,
-      L.logback % Test,
-      L.circeCore % Test,
-      L.circeParser % Test
+      D.collectionCompat.value,
+      D.catsEffect.value,
+      D.fs2.value,
+      D.munitCatsEffect.value % Test,
+      D.circeCore.value % Test,
+      D.circeParser.value % Test
     )
   )
 
 lazy val docs =
-  project
+  projectMatrix
     .in(file("tele-docs"))
+    .jvmPlatform(scalaVersions = ScalaVersions)
     .enablePlugins(MdocPlugin)
     .settings(noPublishSettings)
     .settings(
-      libraryDependencies ++= Seq(L.circeCore, L.circeParser, L.circeGeneric),
+      libraryDependencies ++= Seq(
+        D.circeCore.value,
+        D.circeParser.value,
+        D.circeGeneric.value
+      ),
       mdocOut := (ThisBuild / baseDirectory).value,
       mdocVariables := Map(
         "ORGANIZATION" -> organization.value,
@@ -72,7 +90,7 @@ lazy val root = project
   .settings(
     name := "tele"
   )
-  .aggregate(tele)
+  .aggregate(tele.projectRefs: _*)
 
 val publishSettings: Seq[Setting[_]] = Seq(
   publishMavenStyle := true,
@@ -95,11 +113,11 @@ val publishSettings: Seq[Setting[_]] = Seq(
     runTest,
     setReleaseVersion,
     commitReleaseVersion,
-    releaseStepInputTask(docs / mdoc),
+    releaseStepInputTask(docs.finder().apply(Scala212) / mdoc),
     releaseStepCommand("git add README.md"),
     releaseStepCommand("""git commit -m "update README""""),
     tagRelease,
-    releaseStepCommandAndRemaining("+publishSigned"),
+    releaseStepCommandAndRemaining("publishSigned"),
     releaseStepCommand("sonatypeBundleRelease"),
     setNextVersion,
     commitNextVersion,
