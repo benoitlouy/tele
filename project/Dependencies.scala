@@ -7,10 +7,10 @@ object Dependencies {
     val kindProjector = "0.13.2"
     val kinesis = "2.17.100"
     val kinesisClient = "2.3.9"
-    val catsEffect = "3.3.0"
+    val catsEffect = "3.3.1"
     val fs2 = "3.2.3"
     val munitCatsEffect = "1.0.7"
-    val logback = "1.2.8"
+    val logback = "1.2.9"
     val circe = "0.14.1"
   }
 
